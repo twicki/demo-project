@@ -1,0 +1,123 @@
+pipeline {
+    environment {
+       PATH = "$WORKSPACE/miniconda/bin:$PATH"
+    }
+    agent {
+        label 'tsa'
+    }
+
+    post {
+        always{
+            echo 'Cleaning up workspace'
+            deleteDir()
+        }
+    }
+    stages {
+        stage('setup miniconda') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                set -e
+                bash setup_miniconda.sh -p ${WORKSPACE}
+                '''
+            }
+        }
+        stage('build package') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                set -e
+                cd ${WORKSPACE}/demo-project
+                source ${WORKSPACE}/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate
+                ./setup_env.sh -n demo-project -u
+                conda activate demo-project
+                pip install --no-deps .
+                '''
+            }
+        }
+        stage('test') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate demo-project
+                cd ${WORKSPACE}/demo-project
+                pytest tests
+                '''
+            }
+        }
+        stage('dev-environment') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                set -e
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate
+                cd ${WORKSPACE}/demo-project
+                ./setup_env.sh -n demo-project -d -u
+                conda activate dev-demo-project
+                pip install --no-deps --editable .
+                '''
+            }
+        }
+        stage('dev-test') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate dev-demo-project
+                cd ${WORKSPACE}/demo-project
+                pytest tests
+                '''
+            }
+        }
+        stage('pinned-environment') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                set -e
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate
+                cd ${WORKSPACE}/demo-project
+                ./setup_env.sh -n pinned-demo-project
+                conda activate pinned-demo-project
+                pip install --no-deps .
+                '''
+            }
+        }
+        stage('pinned-test') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda activate pinned-demo-project
+                cd ${WORKSPACE}/demo-project
+                pytest tests
+                '''
+            }
+        }
+        stage('pinned-dev-environment') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                set -e
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda init bash
+                conda activate
+                cd ${WORKSPACE}/demo-project
+                ./setup_env.sh -n pinned-demo-project -d
+                conda activate pinned-dev-demo-project
+                pip install --no-deps --editable .
+                '''
+            }
+        }
+        stage('pinned-dev-test') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                source $WORKSPACE/miniconda/etc/profile.d/conda.sh
+                conda activate pinned-dev-demo-project
+                cd ${WORKSPACE}/demo-project
+                pytest tests
+                '''
+            }
+        }
+    }
+}
